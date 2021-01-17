@@ -2,27 +2,27 @@
 <html lang="en">
 
 <head>
-<script src="openpgpjs/dist/openpgpjs.min.js"></script>
+<script src="openpgpjs/dist/openpgp.min.js"></script>
 <meta charset="utf-8">
 </head>
 
 <body>
 <form action="results" method="post" role="form" id="myForm" onsubmit="return encrypt_message(this);">
   <label for="contactname">Name:</label><br>
-  <input type="text" id="contactname"><br>
+  <input type="text" id="contactname" value="Max Mustermann"><br>
 
   <label for="email">Email:</label><br>
-  <input type="text" id="email"><br>
+  <input type="text" id="email" value="max@mustermann.de"><br>
 
   <label for="subject">Subject:</label><br>
-  <input type="text" id="subject"><br>
+  <input type="text" id="subject" value="Your offer from last sunday"><br>
 
   <label for="content">Content:</label><br>
-  <input type="text" id="content">
+  <input type="text" id="content" value="Hey Max">
 
   <input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">
 
-  <button type="button">Click Me!</button>
+  <button type="submit">Click Me!</button>
 
 
 </form>
@@ -40,8 +40,65 @@
 
             
             ciphertext=plaintext;
-            form.elements["encryptedmessage"].value=ciphertext;
-            return true;
+            //form.elements["encryptedmessage"].value=ciphertext;
+            console.log("before enc");
+            (async () => {
+				await openpgp.initWorker({ path: 'openpgpjs/dist/openpgp.worker.js' });
+	            const pubkey = [
+	            `-----BEGIN PGP PUBLIC KEY BLOCK-----
+				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
+				ItJkX1I9CfEvCro=
+				=eCPm
+				-----END PGP PUBLIC KEY BLOCK-----`];
+				console.log("after reading pgp key");
+				const { data: encrypted } = await openpgp.encrypt({
+	        		message: await openpgp.message.fromText(ciphertext),                 // input as Message object
+	        		publicKeys: (await openpgp.key.readArmored(pubkey)).keys // for encryption
+	    		});
+	    		console.log("Test" + encrypted);
+
+	    	
+	    	console.log("Test2" + encrypted);
+	    		return true;
+    		console.log("Test3" + encrypted);
+			})();
+            //return true;
         }
     </script>
 </body>
