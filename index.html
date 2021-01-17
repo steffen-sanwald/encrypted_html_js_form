@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<script src="openpgpjs/dist/openpgpjs.min.js"></script>
+<meta charset="utf-8">
+</head>
+
+<body>
+<form action="results" method="post" role="form" id="myForm" onsubmit="return encrypt_message(this);">
+  <label for="contactname">Name:</label><br>
+  <input type="text" id="contactname"><br>
+
+  <label for="email">Email:</label><br>
+  <input type="text" id="email"><br>
+
+  <label for="subject">Subject:</label><br>
+  <input type="text" id="subject"><br>
+
+  <label for="content">Content:</label><br>
+  <input type="text" id="content">
+
+  <input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">
+
+  <button type="button">Click Me!</button>
+
+
+</form>
+<script>
+    function encrypt_message(form) {
+            /*
+            Evaluates password strength as meta information and attaches it to hidden pw meta form input.
+            */
+            if (form==null || form.elements["contactname"]==null || form.elements["email"]==null || form.elements["subject"] == null || 
+            	form.elements["content"] == null || form.elements["encryptedmessage"] == null){
+                return false;
+            }
+            var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
+            		" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
+
+            
+            ciphertext=plaintext;
+            form.elements["encryptedmessage"].value=ciphertext;
+            return true;
+        }
+    </script>
+</body>
+
+</html>
