@@ -58,8 +58,7 @@
             //await openpgp.initWorker({ path: 'openpgpjs/dist/openpgp.worker.min.js' });
 			console.log("initialized worker");
 			const pubkey = [
-				`
-				-----BEGIN PGP PUBLIC KEY BLOCK-----
+				`-----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQINBFlHpy8BEAC/qbweqZwLeNm1uquDku7t/DVlEhEmTHHPgXcWl32pzIybuJh6
 DGpVLmljvoNtNkoSB9uxcJ6r+cRMxekie2ZiHmkHZ+Wk3VyCqvgidLnMjS+E01hG
@@ -191,9 +190,7 @@ cVNzX9jxXW2FDmhKU3isljMng6jWXq4KBLjD6xH6a0JVgYR0VAmPxgpPdG5NC9LI
 C5NitKrfa19noUSpS2/IgL54L4bOBdTzouDoTtW39GHIadKT1Fhpt0ivFwdHrHzx
 7F3Z/zCX
 =l0XT
------END PGP PUBLIC KEY BLOCK-----
-
-				`];
+-----END PGP PUBLIC KEY BLOCK-----`];
 				console.log("after reading pgp key");
 				var encrypted=encrypt(pubkey, plaintext);
 	    		console.log("encryption done" + encrypted);	    	
