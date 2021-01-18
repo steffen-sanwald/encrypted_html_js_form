@@ -54,7 +54,7 @@ function on_button_click(evt){
 	}
 	var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
 			" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
-    await openpgp.initWorker({ path: 'openpgp.worker.js' }); // set the relative web worker path
+    await openpgp.initWorker({ path: 'openpgpjs/dist/openpgp.worker.js' }); // set the relative web worker path
 
     
     //var publicKeyArmored2 = form.getAttribute("data-pgp-pubkey"); //this somehow doesn't work yet
@@ -80,7 +80,7 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
     });
     console.log(encrypted); 
 	form.elements["encryptedmessage"].value=encrypted;
-	form.submit();
+	//form.submit();
 })();
 
 }
