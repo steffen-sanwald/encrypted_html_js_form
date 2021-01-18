@@ -1,64 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-
+<html lang="en-US" style="height: 100%;">
 <head>
+	<meta charset="utf-8">
 <script src="openpgp.js"></script>
-<meta charset="utf-8">
+
 </head>
-
 <body>
-<form action="results" method="post" role="form" id="myForm" onsubmit="return on_submit(this);">
-  <label for="contactname">Name:</label><br>
-  <input type="text" id="contactname" value="Max Mustermann"><br>
 
-  <label for="email">Email:</label><br>
-  <input type="text" id="email" value="max@mustermann.de"><br>
+	<form action="results" method="post" role="form" id="myForm">
+		<label for="contactname">Name:</label><br>
+		<input type="text" id="contactname" value="Max Mustermann"><br>
+	  
+		<label for="email">Email:</label><br>
+		<input type="text" id="email" value="max@mustermann.de"><br>
+	  
+		<label for="subject">Subject:</label><br>
+		<input type="text" id="subject" value="Your offer from last sunday"><br>
+	  
+		<label for="content">Content:</label><br>
+		<input type="text" id="content" value="Hey Max">
+	  
+		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">
+    	<input name="Encrypt" ID="Encrypt" type="Button" value="Text mit OpenPGP verschlüsseln!" onclick="on_button_click(this);" class="warning button"/>       
+</form>  
 
-  <label for="subject">Subject:</label><br>
-  <input type="text" id="subject" value="Your offer from last sunday"><br>
 
-  <label for="content">Content:</label><br>
-  <input type="text" id="content" value="Hey Max">
-
-  <input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">
-
-  <button type="submit">Click Me!</button>
-
-
-</form>
 <script>
-	function encrypt(publicKeyArmored, message){
-		(async () => {
-		console.log("started async function");
-		await openpgp.initWorker('openpgp.worker.js');
-		console.log("loaded worker");
-		const { data: encrypted } = await openpgp.encrypt({
-        message: openpgp.message.fromText('Hello, World!'),                 // input as Message object
-        publicKeys: (await openpgp.key.readArmored(publicKeyArmored)).keys, // for encryption        
-	});
-		console.log("finished encryption in async"+encrypted);
-	})().then(a=>console.log("async finished?"));
+function on_button_click(evt){
+	
+  (async () => {
+	  /*
+	Evaluates password strength as meta information and attaches it to hidden pw meta form input.
+	*/
+	var form = document.getElementById("myForm");
+	if (form==null || form.elements["contactname"]==null || form.elements["email"]==null || form.elements["subject"] == null || 
+		form.elements["content"] == null || form.elements["encryptedmessage"] == null){
+		return false;
 	}
-    function on_submit(form) {
-            /*
-            Evaluates password strength as meta information and attaches it to hidden pw meta form input.
-            */
-            if (form==null || form.elements["contactname"]==null || form.elements["email"]==null || form.elements["subject"] == null || 
-            	form.elements["content"] == null || form.elements["encryptedmessage"] == null){
-                return false;
-            }
-            var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
-            		" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
+	var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
+			" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
+    await openpgp.initWorker({ path: 'openpgp.worker.js' }); // set the relative web worker path
 
-            
-            //ciphertext=plaintext;
-            //form.elements["encryptedmessage"].value=ciphertext;
-			console.log("before enc");
-			
-            //await openpgp.initWorker({ path: 'openpgpjs/dist/openpgp.worker.min.js' });
-			console.log("initialized worker");
-			const pubkey = [
-				`-----BEGIN PGP PUBLIC KEY BLOCK-----
+    // put keys in backtick (``) to avoid errors caused by spaces or tabs
+    const publicKeyArmored = `-----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQINBFlHpy8BEAC/qbweqZwLeNm1uquDku7t/DVlEhEmTHHPgXcWl32pzIybuJh6
 DGpVLmljvoNtNkoSB9uxcJ6r+cRMxekie2ZiHmkHZ+Wk3VyCqvgidLnMjS+E01hG
@@ -190,16 +173,19 @@ cVNzX9jxXW2FDmhKU3isljMng6jWXq4KBLjD6xH6a0JVgYR0VAmPxgpPdG5NC9LI
 C5NitKrfa19noUSpS2/IgL54L4bOBdTzouDoTtW39GHIadKT1Fhpt0ivFwdHrHzx
 7F3Z/zCX
 =l0XT
------END PGP PUBLIC KEY BLOCK-----`];
-				console.log("after reading pgp key");
-				var encrypted=encrypt(pubkey, plaintext);
-	    		console.log("encryption done" + encrypted);	    	
-			
-			console.log("Finished function" + encrypted);
-			//return true;
-			return false;
-        }
-    </script>
-</body>
+-----END PGP PUBLIC KEY BLOCK-----`;
 
+
+    const { data: encrypted } = await openpgp.encrypt({
+        message: openpgp.message.fromText(plaintext),                 // input as Message object
+        publicKeys: (await openpgp.key.readArmored(publicKeyArmored)).keys, // for encryption        
+    });
+    console.log(encrypted); // '-----BEGIN PGP MESSAGE ... END PGP MESSAGE-----'
+	form.elements["encryptedmessage"].value=encrypted;
+	form.submit();
+})();
+
+}
+</script>
+</body>
 </html>
