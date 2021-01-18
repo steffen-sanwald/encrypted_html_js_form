@@ -1,27 +1,16 @@
 <html lang="en-US" style="height: 100%;">
 <head>
+	<!--
+		Code developed by Steffen Sanwald.
+		Based on https://github.com/openpgpjs/openpgpjs and https://www.stoerkind.de/SicheresMailformular
+	-->
 	<meta charset="utf-8">
 <script src="openpgpjs/dist/openpgp.js"></script>
 
 </head>
 <body>
 
-	<form action="results" method="post" role="form" id="myForm" 
-	data-pgp-pubkey="-----BEGIN PGP PUBLIC KEY BLOCK-----
-	Comment: Alice's OpenPGP certificate
-	Comment: https://www.ietf.org/id/draft-bre-openpgp-samples-01.html
-	
-	mDMEXEcE6RYJKwYBBAHaRw8BAQdArjWwk3FAqyiFbFBKT4TzXcVBqPTB3gmzlC/U
-	b7O1u120JkFsaWNlIExvdmVsYWNlIDxhbGljZUBvcGVucGdwLmV4YW1wbGU+iJAE
-	ExYIADgCGwMFCwkIBwIGFQoJCAsCBBYCAwECHgECF4AWIQTrhbtfozp14V6UTmPy
-	MVUMT0fjjgUCXaWfOgAKCRDyMVUMT0fjjukrAPoDnHBSogOmsHOsd9qGsiZpgRnO
-	dypvbm+QtXZqth9rvwD9HcDC0tC+PHAsO7OTh1S1TC9RiJsvawAfCPaQZoed8gK4
-	OARcRwTpEgorBgEEAZdVAQUBAQdAQv8GIa2rSTzgqbXCpDDYMiKRVitCsy203x3s
-	E9+eviIDAQgHiHgEGBYIACAWIQTrhbtfozp14V6UTmPyMVUMT0fjjgUCXEcE6QIb
-	DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
-	0QEA22Kr7VkCjeAEC08VSTeV+QFsmz55/lntWkwYWhmvOgE=
-	=iIGO
-	-----END PGP PUBLIC KEY BLOCK-----">
+	<form action="results" method="post" role="form" id="myForm">	
 		<label for="contactname">Name:</label><br>
 		<input type="text" id="contactname" value="Max Mustermann"><br>
 	  
@@ -35,30 +24,10 @@
 		<input type="text" id="content" value="Hey Max">
 	  
 		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">
-    	<input name="Encrypt" ID="Encrypt" type="Button" value="Text mit OpenPGP verschlüsseln!" onclick="on_button_click(this);" class="warning button"/>       
-</form>  
-
-
-<script>
-function on_button_click(evt){
-	
-  (async () => {
-	  /*
-	Evaluates password strength as meta information and attaches it to hidden pw meta form input.
-	Decrypt it for testing via: gpg --output test.msg --decrypt test.msg.pgp
-	*/
-	var form = document.getElementById("myForm");
-	if (form==null || form.getAttribute("data-pgp-pubkey")==null || form.elements["contactname"]==null || form.elements["email"]==null || form.elements["subject"] == null || 
-		form.elements["content"] == null || form.elements["encryptedmessage"] == null){
-		return false;
-	}
-	var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
-			" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
-    await openpgp.initWorker({ path: 'openpgpjs/dist/openpgp.worker.js' }); // set the relative web worker path
-
-    
-    //var publicKeyArmored2 = form.getAttribute("data-pgp-pubkey"); //this somehow doesn't work yet
-	const publicKeyArmored = `-----BEGIN PGP PUBLIC KEY BLOCK-----
+		<input name="Encrypt" ID="Encrypt" type="Button" value="Text mit OpenPGP verschlüsseln!" onclick="on_button_click(this);" class="warning button"/>  
+		
+		<input id="pubkey" type="hidden" value=
+"-----BEGIN PGP PUBLIC KEY BLOCK-----
 Comment: Alice's OpenPGP certificate
 Comment: https://www.ietf.org/id/draft-bre-openpgp-samples-01.html
 
@@ -72,7 +41,30 @@ E9+eviIDAQgHiHgEGBYIACAWIQTrhbtfozp14V6UTmPyMVUMT0fjjgUCXEcE6QIb
 DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 0QEA22Kr7VkCjeAEC08VSTeV+QFsmz55/lntWkwYWhmvOgE=
 =iIGO
------END PGP PUBLIC KEY BLOCK-----`;
+-----END PGP PUBLIC KEY BLOCK-----"/> 
+<!-- must have no space to the left-->
+</form>  
+
+
+<script>
+function on_button_click(evt){
+	/*
+	Evaluates password strength as meta information and attaches it to hidden pw meta form input.
+	Decrypt it for testing via: gpg --output test.msg --decrypt test.msg.pgp
+	*/
+	
+  (async () => {
+	  
+	var form = document.getElementById("myForm");
+	if (form==null || form.elements["pubkey"]==null || form.elements["contactname"]==null || form.elements["email"]==null || form.elements["subject"] == null || 
+		form.elements["content"] == null || form.elements["encryptedmessage"] == null){
+		return false;
+	}
+	
+	var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
+			" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
+	var publicKeyArmored = ""+form.elements["pubkey"].value;
+    await openpgp.initWorker({ path: 'openpgpjs/dist/openpgp.worker.js' }); // set the relative web worker path
 
     const { data: encrypted } = await openpgp.encrypt({
         message: openpgp.message.fromText(plaintext),                 
@@ -80,7 +72,7 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
     });
     console.log(encrypted); 
 	form.elements["encryptedmessage"].value=encrypted;
-	//form.submit();
+	form.submit();
 })();
 
 }
