@@ -122,11 +122,38 @@ function write_mail($content){
     $mime .= "–".$bound."–";
     echo("Mime:<br>".$mime);
     echo("Headers:<br>".$headers);
-    //mail($dest, $subject, $mime, $headers);
+    try{
+        mail($dest, $subject, $mime, $headers);
+        return TRUE;
+    }
+    catch(Exception $e){
+        return FALSE;
+    }
+}
+function write_to_log($resp,$mail_success){
+    $log_dir="."; 
+    array_push($resp,$resp ? 'MailSuccess' : 'MailFailed');
+    
+    $log="SecureContactForm:".implode(":::",$resp);    
+    echo("Log".$log."<br>");
+    if($resp[0]=="Valid"){ //only write validated input to logging file.
+        file_put_contents($log_dir.'/log_'.$resp[0]."_".date("j.n.Y").'.log', $log."\r\n", FILE_APPEND);        
+    }
+    else{
+        if($resp[0]=="PostAnalysisNeeded"){
+            $log=$log.":::PostAnalysisNeeded";
+        }
+        error_log($log."\r\n");
+    }
+    
 }
 $response=check_userinput();
 echo("Response:".$response[0]."<br>");
 echo("Info:".$response[1]."<br>");
 echo("PGP:".$response[2]."<br>");
-write_mail($response[2]);
+if($response[0]=="Valid"){
+    $res_mail=write_mail($response[2]);
+}
+write_to_log($response,$res_mail);
+
 ?>
