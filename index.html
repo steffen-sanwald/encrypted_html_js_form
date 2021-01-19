@@ -6,11 +6,11 @@
 	-->
 	<meta charset="utf-8">
 <script src="openpgpjs/dist/openpgp.js"></script>
-
+<script src='https://www.hCaptcha.com/1/api.js' async defer></script>
 </head>
 <body>
 
-	<form action="results" method="post" role="form" id="myForm">	
+	<form action="contact.php" method="post" role="form" id="myForm">	
 		<label for="contactname">Name:</label><br>
 		<input type="text" id="contactname" value="Max Mustermann"><br>
 	  
@@ -22,9 +22,14 @@
 	  
 		<label for="content">Content:</label><br>
 		<input type="text" id="content" value="Hey Max">
-	  
+		<!-- official dummy value for data-sitekey taken from https://docs.hcaptcha.com.
+			Can be used for debugging.
+			Replace value with the one from your hcaptcha instance -->
+		<div class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001"></div>
+		
+		
 		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">
-		<input name="Encrypt" ID="Encrypt" type="Button" value="Text mit OpenPGP verschlüsseln!" onclick="on_button_click(this);" class="warning button"/>  
+		<input name="submit-msg" ID="submit-msg" type="Button" value="Text mit OpenPGP verschlüsseln!" onclick="on_button_click(this);" class="warning button"/>  
 		
 		<input id="pubkey" type="hidden" value=
 "-----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -48,11 +53,16 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 
 <script>
 function on_button_click(evt){
-	/*
+	/*	
 	Evaluates password strength as meta information and attaches it to hidden pw meta form input.
 	Decrypt it for testing via: gpg --output test.msg --decrypt test.msg.pgp
+	But first check captcha client-sided
 	*/
-	
+	var hcaptchaVal = document.getElementsByName("h-captcha-response")[0].value; 
+   if (hcaptchaVal === "") {
+      event.preventDefault();
+      alert("Please complete the hCaptcha");
+   }
   (async () => {
 	  
 	var form = document.getElementById("myForm");
