@@ -176,5 +176,5 @@ if($response[0]=="Valid"){
     $res_mail=write_mail($response[2]);
 }
 write_to_log($response,$res_mail);
-
+echo($response[0]);
 ?>
