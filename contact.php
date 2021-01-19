@@ -1,4 +1,6 @@
 <?php
+define('DEBUG',true);
+
 include_once("config.php");
 
 function check_captcha($captcha_response){
@@ -120,24 +122,41 @@ function write_mail($content){
     $mime .= "Content-Disposition: inline; filename=\"encrypted.asc\"\r\n\r\n";
     $mime .= $content."\r\n";
     $mime .= "–".$bound."–";
-    echo("Mime:<br>".$mime);
-    echo("Headers:<br>".$headers);
+    if(DEBUG){
+        echo("Mime:<br>".$mime);
+        echo("Headers:<br>".$headers);
+    }    
     try{
         mail($dest, $subject, $mime, $headers);
         return TRUE;
     }
     catch(Exception $e){
+        error_log("SecureContactForm:Could send mail:::".$mime.":::".$headers);
         return FALSE;
     }
 }
 function write_to_log($resp,$mail_success){
+    /*
+    write result to log file
+    only validated content is allowed for the custom log
+    all others shall be handled by the webserver log in a secure fashion
+    */
     $log_dir="."; 
+    $log_file=$log_dir.'/log_'.$resp[0]."_".date("j.n.Y").'.log';
     array_push($resp,$resp ? 'MailSuccess' : 'MailFailed');
     
     $log="SecureContactForm:".implode(":::",$resp);    
-    echo("Log".$log."<br>");
+    if(DEBUG){
+        echo("Log".$log."<br>");
+    }    
     if($resp[0]=="Valid"){ //only write validated input to logging file.
-        file_put_contents($log_dir.'/log_'.$resp[0]."_".date("j.n.Y").'.log', $log."\r\n", FILE_APPEND);        
+        try{
+            file_put_contents($log_file, $log."\r\n", FILE_APPEND);        
+        }
+        catch(Exception $e){
+            error_log("Could write valid input to logfile:".$log_file.":::".$log);
+        }
+        
     }
     else{
         if($resp[0]=="PostAnalysisNeeded"){
@@ -148,9 +167,11 @@ function write_to_log($resp,$mail_success){
     
 }
 $response=check_userinput();
-echo("Response:".$response[0]."<br>");
-echo("Info:".$response[1]."<br>");
-echo("PGP:".$response[2]."<br>");
+if(DEBUG){
+    echo("Response:".$response[0]."<br>");
+    echo("Info:".$response[1]."<br>");
+    echo("PGP:".$response[2]."<br>");
+}
 if($response[0]=="Valid"){
     $res_mail=write_mail($response[2]);
 }
