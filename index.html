@@ -22,36 +22,37 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 =iIGO
 -----END PGP PUBLIC KEY BLOCK-----"> 
 <script src="openpgpjs/dist/openpgp.js"></script>
-<script src='https://www.hCaptcha.com/1/api.js' async defer></script>
+<!--<script src='https://www.hCaptcha.com/1/api.js' async defer></script>-->
 </head>
 <body>
 
 	<form action="contact.php" method="post" role="form" id="myForm">	
 		<label for="contactname">Name:</label><br>
-		<input type="text" id="contactname" value="Max Mustermann"><br>
+		<input type="text" id="contactname" placeholder="Max Mustermann"><br>
 	  
 		<label for="email">Email:</label><br>
-		<input type="text" id="email" value="max@mustermann.de"><br>
+		<input type="text" id="email" placeholder="max@mustermann.de" required pattern="[Bb]anana|[Cc]herry"><br>
 	  
 		<label for="subject">Subject:</label><br>
-		<input type="text" id="subject" value="Your offer from last sunday"><br>
+		<input type="text" id="subject" placeholder="Your offer from last sunday"><br>
 	  
 		<label for="content">Content:</label><br>
-		<input type="text" id="content" value="Hey Max">
+		<input type="text" id="content" placeholder="Hey Max" required>
 		<!-- official dummy value for data-sitekey taken from https://docs.hcaptcha.com.
 			Can be used for debugging.
 			Replace value with the one from your hcaptcha instance -->
-			
+
 		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">		  
-		<button id="submit-msg" name="submit-msg" class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001" data-callback="on_button_click" value="Submit encrypted"></button>
+		<button id="submit-msg" name="submit-msg" class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001" data-callback="after_capture_success" value="Submit encrypted"></button>
 		
-		
+		<p id="result">Not yet</p>
 <!-- must have no space to the left-->
 </form>  
 
 
 <script>
-function on_button_click(evt){
+
+function after_capture_success(evt){
 	/*	
 	Evaluates password strength as meta information and attaches it to hidden pw meta form input.
 	Decrypt it for testing via: gpg --output test.msg --decrypt test.msg.pgp
@@ -66,16 +67,16 @@ function on_button_click(evt){
    }
 	  
 	var form = document.getElementById("myForm");
-    if(form==null){
-      console.log("Form is null");
-      return false;
-    }
+	var result = is_form_input_valid(form);
+	if(!result[0]){
+		console.log("Form input failed:"+result[1]);
+		return false;
+	}
     var form_jq=$(form);    
     var action = form_jq.attr('action');
     var publicKeyArmored = document.getElementById("pgp-pubkey").content;
-    if ( form.elements["contactname"]==null || form.elements["email"]==null || form.elements["subject"] == null || 
-      form.elements["content"] == null || publicKeyArmored == null){
-		console.log("some form content is null");
+    if ( publicKeyArmored == null){
+		console.log("public key not specified");
 		return false;
 	  }
 	
@@ -89,17 +90,8 @@ function on_button_click(evt){
         publicKeys: (await openpgp.key.readArmored(publicKeyArmored)).keys,
     });
 	console.log("Raw msg:"+encrypted); 
-	//trimm input that only base64 characters will be transmitted to the backend 
-	//allow list check doesn't need to take care about difficult pgp comment stuff --> more restrictive = more secure
-	var trimmed=encrypted;
-      trimmed=trimmed.replace("-----BEGIN PGP MESSAGE-----","");
-      trimmed=trimmed.replace("-----END PGP MESSAGE-----","");
-      trimmed=trimmed.replace("Version:","");
-      trimmed=trimmed.replace("OpenPGP.js","");
-      trimmed=trimmed.replace("Comment:","");
-      trimmed=trimmed.replace("https://openpgpjs.org","");
-      trimmed=trimmed.replace(/(v\d\.[\d|\.]+)/gi,"");
-      trimmed=trimmed.trim();
+
+	var trimmed=trim_pgp_message(encrypted);
 	  console.log("Send msg:"+trimmed); 
 	  //check whether trimming somehow destroyed the content
       if(encrypted.indexOf(trimmed)<0 || /^([A-Za-z0-9+/=\r\n]+)$/.test(trimmed)==false){
@@ -114,7 +106,9 @@ function on_button_click(evt){
 	  data: transmitted_val,
 	  encode:false,
 	  process:false,
-      success: function(msg) {		  
+      success: function(msg) {		
+		  document.getElementById("result").innerText=msg;//for easy debugging on Smartphone
+		  
 		  if (msg == 'Valid' || msg=="Invalid") {  //if only one of these words is returned, debug is off.
 			if (msg == 'Valid') {
 			console.log("Submitted encrypted data successfully");
@@ -123,24 +117,40 @@ function on_button_click(evt){
 			}
 		}
 		else{//debug messages are enabled. JSON object returned
-			response=JSON.parse(msg);
+			response=JSON.parse(msg);			
 			if (response["result"] == 'Valid') {
 			console.log("Submitted encrypted data successfully (DEBUG ON)") 
 			} else {
+
+				msg=escapeHtml(response["msg"]);
+				result=escapeHtml(response["result"]);
+				info=escapeHtml(response["info"]);
 			console.log("Submitted encrypted data failed (DEBUG ON)");
-			console.log(response["info"]);
-			console.log(response["msg"]);
-			response["log"].forEach(function (item,index){
-				console.log("Log"+index+":"+item);
+			console.log(result);
+			console.log(info);
+			console.log(msg);
+			if(response["log"]!=null){
+				response["log"].forEach(function (item,index){
+				console.log("Log"+index+":"+escapeHtml(item));
 			})
+			}
+			
 			}
 		}
       }
     });
 })();
-
 }
+
+	
+	
+	  
+
 </script>
+
 <script src="js/jquery.min.js"></script>
+<script src="js/check_input.js">
+	add_lazyload_handlers();
+</script>
 </body>
 </html>
