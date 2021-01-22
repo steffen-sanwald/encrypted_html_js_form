@@ -44,9 +44,18 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 			Can be used for debugging.
 			Replace value with the one from your hcaptcha instance -->
 			<!--<div class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001"></div>-->
-		
+		<div 
+			id="hcaptcha"
+			class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001"		
+			data-callback="after_capture_success" 
+			data-size="invisible"
+		></div>
 		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">		  
-		<button id="submit-msg" name="submit-msg" class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001" data-callback="after_capture_success" value="Submit encrypted"></button>
+		
+		<button id="submit-msg" name="submit-msg"  				
+				value="Submit encrypted" onclick="validate(event);"			
+				>
+		</button>
 		
 		<p id="result">Not yet</p>
 <!-- must have no space to the left-->
@@ -54,6 +63,26 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 
 
 <script>
+
+	function validate(event){
+		console.log("Validating input before captcha check");
+		event.preventDefault();
+		var result = is_form_input_valid(document.getElementById("myForm"));
+		if(!result[0]){
+			console.log("Form input failed:"+result[1]);
+			document.getElementById("result").innerText="Form input failed:"+result[1];//for easy debugging on Smartphone
+			return false;
+		}		
+		if ( document.getElementById("pgp-pubkey").content == null){
+			console.log("public key not specified");
+			document.getElementById("result").innerText="public key not specified";//for easy debugging on Smartphone
+			return false;
+		}
+		if(is_hcaptcha_already_loaded()){
+			hcaptcha.execute();
+		}
+		
+	}
 
 function after_capture_success(evt){
 	/*	
@@ -63,28 +92,18 @@ function after_capture_success(evt){
 	*/
 
   (async () => {
+	console.log("Capture solved successfully");
 	var hcaptchaVal = document.getElementsByName("h-captcha-response")[0].value; 
    if (hcaptchaVal === "") {
-      event.preventDefault();
-      alert("Please complete the hCaptcha");
+		evt.preventDefault();
+      	alert("Please complete the hCaptcha");
    }
 	  
 	var form = document.getElementById("myForm");
-	var result = is_form_input_valid(form);
-	if(!result[0]){
-		console.log("Form input failed:"+result[1]);
-		document.getElementById("result").innerText="Form input failed:"+result[1];//for easy debugging on Smartphone
-		return false;
-	}
-    var form_jq=$(form);    
-    var action = form_jq.attr('action');
-    var publicKeyArmored = document.getElementById("pgp-pubkey").content;
-    if ( publicKeyArmored == null){
-		console.log("public key not specified");
-		document.getElementById("result").innerText="public key not specified";//for easy debugging on Smartphone
-		return false;
-	  }
+	var publicKeyArmored = document.getElementById("pgp-pubkey").content;
 	
+	var form_jq=$(form);  
+	var action = form_jq.attr('action');  
 	var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
 			" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
 	

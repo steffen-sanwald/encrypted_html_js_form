@@ -30,6 +30,7 @@ async function lazy_load_hcaptcha(){
     script.id="hcpatcha_lazy_load";    
     head.appendChild(script);
     console.log("Lazy loaded hcaptcha");
+
 }
 
 function add_lazyload_handlers(){
