@@ -5,6 +5,22 @@
 		Based on https://github.com/openpgpjs/openpgpjs and https://www.stoerkind.de/SicheresMailformular
 	-->
 	<meta charset="utf-8">
+	<meta name="pgp-pubkey" id="pgp-pubkey" content=
+"-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: Alice's OpenPGP certificate
+Comment: https://www.ietf.org/id/draft-bre-openpgp-samples-01.html
+
+mDMEXEcE6RYJKwYBBAHaRw8BAQdArjWwk3FAqyiFbFBKT4TzXcVBqPTB3gmzlC/U
+b7O1u120JkFsaWNlIExvdmVsYWNlIDxhbGljZUBvcGVucGdwLmV4YW1wbGU+iJAE
+ExYIADgCGwMFCwkIBwIGFQoJCAsCBBYCAwECHgECF4AWIQTrhbtfozp14V6UTmPy
+MVUMT0fjjgUCXaWfOgAKCRDyMVUMT0fjjukrAPoDnHBSogOmsHOsd9qGsiZpgRnO
+dypvbm+QtXZqth9rvwD9HcDC0tC+PHAsO7OTh1S1TC9RiJsvawAfCPaQZoed8gK4
+OARcRwTpEgorBgEEAZdVAQUBAQdAQv8GIa2rSTzgqbXCpDDYMiKRVitCsy203x3s
+E9+eviIDAQgHiHgEGBYIACAWIQTrhbtfozp14V6UTmPyMVUMT0fjjgUCXEcE6QIb
+DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
+0QEA22Kr7VkCjeAEC08VSTeV+QFsmz55/lntWkwYWhmvOgE=
+=iIGO
+-----END PGP PUBLIC KEY BLOCK-----"> 
 <script src="openpgpjs/dist/openpgp.js"></script>
 <script src='https://www.hCaptcha.com/1/api.js' async defer></script>
 </head>
@@ -25,28 +41,11 @@
 		<!-- official dummy value for data-sitekey taken from https://docs.hcaptcha.com.
 			Can be used for debugging.
 			Replace value with the one from your hcaptcha instance -->
-		<div class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001"></div>
+			
+		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">		  
+		<button id="submit-msg" name="submit-msg" class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001" data-callback="on_button_click" value="Submit encrypted"></button>
 		
 		
-		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">
-		<input name="submit-msg" ID="submit-msg" type="Button" value="Text mit OpenPGP verschlüsseln!" onclick="on_button_click(this);" class="warning button"/>  
-		
-		<input id="pubkey" type="hidden" value=
-"-----BEGIN PGP PUBLIC KEY BLOCK-----
-Comment: Alice's OpenPGP certificate
-Comment: https://www.ietf.org/id/draft-bre-openpgp-samples-01.html
-
-mDMEXEcE6RYJKwYBBAHaRw8BAQdArjWwk3FAqyiFbFBKT4TzXcVBqPTB3gmzlC/U
-b7O1u120JkFsaWNlIExvdmVsYWNlIDxhbGljZUBvcGVucGdwLmV4YW1wbGU+iJAE
-ExYIADgCGwMFCwkIBwIGFQoJCAsCBBYCAwECHgECF4AWIQTrhbtfozp14V6UTmPy
-MVUMT0fjjgUCXaWfOgAKCRDyMVUMT0fjjukrAPoDnHBSogOmsHOsd9qGsiZpgRnO
-dypvbm+QtXZqth9rvwD9HcDC0tC+PHAsO7OTh1S1TC9RiJsvawAfCPaQZoed8gK4
-OARcRwTpEgorBgEEAZdVAQUBAQdAQv8GIa2rSTzgqbXCpDDYMiKRVitCsy203x3s
-E9+eviIDAQgHiHgEGBYIACAWIQTrhbtfozp14V6UTmPyMVUMT0fjjgUCXEcE6QIb
-DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
-0QEA22Kr7VkCjeAEC08VSTeV+QFsmz55/lntWkwYWhmvOgE=
-=iIGO
------END PGP PUBLIC KEY BLOCK-----"/> 
 <!-- must have no space to the left-->
 </form>  
 
@@ -58,34 +57,90 @@ function on_button_click(evt){
 	Decrypt it for testing via: gpg --output test.msg --decrypt test.msg.pgp
 	But first check captcha client-sided
 	*/
+
+  (async () => {
 	var hcaptchaVal = document.getElementsByName("h-captcha-response")[0].value; 
    if (hcaptchaVal === "") {
       event.preventDefault();
       alert("Please complete the hCaptcha");
    }
-  (async () => {
 	  
 	var form = document.getElementById("myForm");
-	if (form==null || form.elements["pubkey"]==null || form.elements["contactname"]==null || form.elements["email"]==null || form.elements["subject"] == null || 
-		form.elements["content"] == null || form.elements["encryptedmessage"] == null){
+    if(form==null){
+      console.log("Form is null");
+      return false;
+    }
+    var form_jq=$(form);    
+    var action = form_jq.attr('action');
+    var publicKeyArmored = document.getElementById("pgp-pubkey").content;
+    if ( form.elements["contactname"]==null || form.elements["email"]==null || form.elements["subject"] == null || 
+      form.elements["content"] == null || publicKeyArmored == null){
+		console.log("some form content is null");
 		return false;
-	}
+	  }
 	
 	var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
 			" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
-	var publicKeyArmored = ""+form.elements["pubkey"].value;
+	
     await openpgp.initWorker({ path: 'openpgpjs/dist/openpgp.worker.js' }); // set the relative web worker path
 
     const { data: encrypted } = await openpgp.encrypt({
         message: openpgp.message.fromText(plaintext),                 
         publicKeys: (await openpgp.key.readArmored(publicKeyArmored)).keys,
     });
-    console.log(encrypted); 
-	form.elements["encryptedmessage"].value=encrypted;
-	form.submit();
+	console.log("Raw msg:"+encrypted); 
+	//trimm input that only base64 characters will be transmitted to the backend 
+	//allow list check doesn't need to take care about difficult pgp comment stuff --> more restrictive = more secure
+	var trimmed=encrypted;
+      trimmed=trimmed.replace("-----BEGIN PGP MESSAGE-----","");
+      trimmed=trimmed.replace("-----END PGP MESSAGE-----","");
+      trimmed=trimmed.replace("Version:","");
+      trimmed=trimmed.replace("OpenPGP.js","");
+      trimmed=trimmed.replace("Comment:","");
+      trimmed=trimmed.replace("https://openpgpjs.org","");
+      trimmed=trimmed.replace(/(v\d\.[\d|\.]+)/gi,"");
+      trimmed=trimmed.trim();
+	  console.log("Send msg:"+trimmed); 
+	  //check whether trimming somehow destroyed the content
+      if(encrypted.indexOf(trimmed)<0 || /^([A-Za-z0-9+/=\r\n]+)$/.test(trimmed)==false){
+		console.log("Trimming deleted pgp message content or contains not base64 characters"); 
+		return false;
+	  }
+	  var transmitted_val="encryptedmessage="+trimmed+"&h-captcha-response="+hcaptchaVal;
+	  // transfer data via AJAX POST request	  
+	  $.ajax({
+      type: "POST",
+      url: action,
+	  data: transmitted_val,
+	  encode:false,
+	  process:false,
+      success: function(msg) {		  
+		  if (msg == 'Valid' || msg=="Invalid") {  //if only one of these words is returned, debug is off.
+			if (msg == 'Valid') {
+			console.log("Submitted encrypted data successfully");
+			} else {
+			console.log("Submitted encrypted data failed");
+			}
+		}
+		else{//debug messages are enabled. JSON object returned
+			response=JSON.parse(msg);
+			if (response["result"] == 'Valid') {
+			console.log("Submitted encrypted data successfully (DEBUG ON)") 
+			} else {
+			console.log("Submitted encrypted data failed (DEBUG ON)");
+			console.log(response["info"]);
+			console.log(response["msg"]);
+			response["log"].forEach(function (item,index){
+				console.log("Log"+index+":"+item);
+			})
+			}
+		}
+      }
+    });
 })();
 
 }
 </script>
+<script src="js/jquery.min.js"></script>
 </body>
 </html>

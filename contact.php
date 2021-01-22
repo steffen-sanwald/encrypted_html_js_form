@@ -1,10 +1,21 @@
 <?php
-define('DEBUG',true);
-
+define('VERIFY_CAPTURE',true); //default=true
+define('DEBUG',false);//default=false
+define('ADD_LOG_TO_JSON_OBJ',false);//default=false
 include_once("config.php");
+$global_logs=array();
+
+function add_log_entry($log_msg){
+    global $global_logs;
+    $global_logs[]=$log_msg;    
+}
 
 function check_captcha($captcha_response){
+    /**
+     * checks the user given captcha against the server
+     */
     global $captcha_secret;
+    add_log_entry("Checking Captcha");
     // get verify response        
     $verify = curl_init();    
     $data = array(
@@ -18,12 +29,16 @@ function check_captcha($captcha_response){
     //catch all exception to avoid leaking your secret to the user
     try{
         $verifyResponse = curl_exec($verify);
+        add_log_entry("Captcha server queried done");
     }catch(Exception $e){
-        return array("Invalid","Exception during hcaptcha curl in backend","");
+        return array(
+            "result"=>"Invalid",
+            "info" => "Exception during hcaptcha curl in backend",
+            "msg" => "");
     }
     
     $responseData = json_decode($verifyResponse);
-    //echo("ResponseData".$verifyResponse);
+    add_log_entry("Captcha Evaluated Response:".$verifyResponse);
     return $responseData->success;
 }
 
@@ -32,43 +47,59 @@ function check_userinput(){
      * check userinput restrictively
      * only allowed characters are accepted
      */
+    add_log_entry("Checking userinput");
+    if(!isset($_POST['encryptedmessage']) || empty($_POST['encryptedmessage'])){        
+        return array(
+            "result"=>"Invalid",
+            "info" => "No/empty message was submitted",
+            "msg" => "");
+    }
+    if(VERIFY_CAPTURE){
+        if(!isset($_POST['h-captcha-response']) || empty($_POST['h-captcha-response'])){            
+            return array(
+                "result"=>"Invalid",
+                "info" => "No/empty captcha was submitted",
+                "msg" => "");
+        }
+        $capt_resp=$_POST['h-captcha-response'];
+        //check  if captcha response only comprises allowed characters
+        preg_match("#^[a-zA-Z0-9-._]+$#",$capt_resp,$matches);
+        if(sizeof($matches)!=1 || $matches[0]!=$capt_resp){            
+            return array(
+                "result"=>"Invalid",
+                "info" => "Non allowed characters in h-captcha-response",
+                "msg" => "");
+        }
+        if(!check_captcha($_POST['h-captcha-response'])){            
+            return array(
+                "result"=>"Invalid",
+                "info" => "Invalid captcha",
+                "msg" => "");
+        }
+    }   
     
-    if(!isset($_POST['encryptedmessage']) || empty($_POST['encryptedmessage'])){
-        return array("Invalid","No/empty message was submitted","");
-    }
-    if(!isset($_POST['h-captcha-response']) || empty($_POST['h-captcha-response'])){
-        return array("Invalid","No/empty captcha was submitted","");
-    }
-    //check  if captcha response only comprises allowed characters
-    if(!preg_match("#^[a-zA-Z0-9-._]+$#",$_POST['h-captcha-response'])){
-        return array("Invalid", "Non allowed characters in h-captcha-response","");
-    }
-    if(!check_captcha($_POST['h-captcha-response'])){
-        return array("Invalid","Invalid captcha","");
-    }
-
-    //check if pgp encrpyted message only comprises allowed characters --> needs more testing before discarding its content. 
-    //Maybe write it into log and send admin an default e-mail instead
-    if(!preg_match("/[a-zA-Z0-9\-\+\/\r\n\=\:\.\ ]+/m",$_POST['encryptedmessage'])){    
-        $msg=$_POST['encryptedmessage'];
-        $msg=str_replace("-----BEGIN PGP MESSAGE-----","",$msg);
-        $msg=str_replace("-----END PGP MESSAGE-----","",$msg);
-        $msg=str_replace("Version:","",$msg);
-        $msg=str_replace("OpenPGP.js","",$msg);
-        $msg=str_replace("Comment:","",$msg);
-        $msg=str_replace("https://openpgpjs.org","",$msg);
-        $msg=preg_replace("(v[0-9\.]+)"," ",$msg);
-        $msg=trim($msg);
-        //Regex for allowed chars in pgp based on
-        //https://crypto.stackexchange.com/questions/18517/what-characters-are-valid-in-pgp-encrypted-and-signed-messages
-        if(preg_match("[a-zA-Z0-9\+\/\=\ ]",$msg)){ 
-            $msg="-----BEGIN PGP MESSAGE-----\r\n".$msg."\r\n-----END PGP MESSAGE-----";
-            return array("Valid", "Input was not catched by original filter, but seems valid",$msg);
-        }else{
-            return array("PostAnalysisNeeded", "Version and Comment field probably not correct. Encoding input as base64 for post-analysis",base64_encode($_POST['encryptedmessage']));    
-        }        
+    //check if trimmed pgp encrpyted message (without comments,preamble,etc.. ) only comprises base64 characters
+    //Regex for allowed base64 chars in pgp based on
+    //https://crypto.stackexchange.com/questions/18517/what-characters-are-valid-in-pgp-encrypted-and-signed-messages            
+    $msg=$_POST['encryptedmessage'];
+    add_log_entry("Raw base64 msg:\"".$msg."\"");
+    $msg=str_replace(" ","+",$msg);//recover base64 character + 
+    add_log_entry("Recovered base64 msg:\"".$msg."\"");
+    preg_match("#[a-zA-Z0-9+\/=\r\n]+#",$msg,$matches);        
+    if(sizeof($matches)!=1 || $matches[0]!=$msg){
+        $msg="-----BEGIN-BASE64-ERR-MESSAGE-----\r\n".base64encode($msg)."\r\n-----END-BASE64-ERR-MESSAGE-----";        
+        return array(
+            "result"=>"Invalid",
+            "info" => "None base64 characters detected in PGP content",
+            "msg" => $msg);  
     }    
-    return array("Valid","",$_POST['encryptedmessage']);
+    $msg="-----BEGIN PGP MESSAGE-----\r\n".$msg."\r\n-----END PGP MESSAGE-----";   
+    add_log_entry("Passed Base64 pgp message filter");
+    return array(
+        "result"=>"Valid",
+        "info" => "Input was transmitted properly",
+        "msg" => $msg);
+    
 }
 
 function write_mail($content){
@@ -76,6 +107,7 @@ function write_mail($content){
         based on https://thomas.gouverneur.name/2012/04/20120430sending-pgp-html-encrypted-e-mail-with-php/
     */
     global $smtp_data;
+    
     $pgpmime = "";
     $mime = "";
     $headers = "";
@@ -122,59 +154,61 @@ function write_mail($content){
     $mime .= "Content-Disposition: inline; filename=\"encrypted.asc\"\r\n\r\n";
     $mime .= $content."\r\n";
     $mime .= "–".$bound."–";
-    if(DEBUG){
-        echo("Mime:<br>".$mime);
-        echo("Headers:<br>".$headers);
-    }    
+    
+    add_log_entry("Sending mail:");
+    add_log_entry("Mime:".$mime);
+    add_log_entry("Headers:".$headers);
+        
     try{
         mail($dest, $subject, $mime, $headers);
+        add_log_entry("Sending mail successfully");
         return TRUE;
     }
     catch(Exception $e){
-        error_log("SecureContactForm:Could send mail:::".$mime.":::".$headers);
+        add_log_entry("SecureContactForm:Could send mail:::".$mime.":::".$headers);
         return FALSE;
     }
 }
-function write_to_log($resp,$mail_success){
+function write_to_logfile($resp,$mail_success){
     /*
     write result to log file
     only validated content is allowed for the custom log
     all others shall be handled by the webserver log in a secure fashion
     */
     $log_dir="."; 
-    $log_file=$log_dir.'/log_'.$resp[0]."_".date("j.n.Y").'.log';
-    array_push($resp,$resp ? 'MailSuccess' : 'MailFailed');
-    
-    $log="SecureContactForm:".implode(":::",$resp);    
-    if(DEBUG){
-        echo("Log".$log."<br>");
-    }    
-    if($resp[0]=="Valid"){ //only write validated input to logging file.
+    $log_file=$log_dir.'/log_'.$resp["result"]."_".date("j.n.Y").'.log';
+    if($resp["result"]=="Valid"){ //only write validated input to logging file.
+        $log="SecureContactFormValid:".implode(":::",$resp);    
         try{
-            file_put_contents($log_file, $log."\r\n", FILE_APPEND);        
+            file_put_contents($log_file, $log."\r\n", FILE_APPEND);     
+            return true;   
         }
         catch(Exception $e){
-            error_log("Could write valid input to logfile:".$log_file.":::".$log);
+            add_log_entry("Could write valid input to logfile:".$log_file.":::".$log);
         }
         
-    }
-    else{
-        if($resp[0]=="PostAnalysisNeeded"){
-            $log=$log.":::PostAnalysisNeeded";
-        }
-        error_log($log."\r\n");
-    }
+    }    
+    $log="SecureContactFormFail:".implode(":::",$resp);    
+    error_log("CentralLoggingStatement:".$log."\r\n");
+    return false;
+    
     
 }
 $response=check_userinput();
+$res_mail="";
+if($response["result"]=="Valid"){
+    $res_mail=write_mail($response["msg"]);
+}
+
+write_to_logfile($response,$res_mail);
 if(DEBUG){
-    echo("Response:".$response[0]."<br>");
-    echo("Info:".$response[1]."<br>");
-    echo("PGP:".$response[2]."<br>");
+    if(ADD_LOG_TO_JSON_OBJ){
+        $response["log"]=$global_logs;
+    }    
+    echo(json_encode($response));
 }
-if($response[0]=="Valid"){
-    $res_mail=write_mail($response[2]);
+else{
+    echo($response["result"]); //hide the error messages
 }
-write_to_log($response,$res_mail);
-echo($response[0]);
+
 ?>
