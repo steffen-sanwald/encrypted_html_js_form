@@ -21,7 +21,7 @@ function is_form_input_valid(form){
         var cur_input=$(this);
         if(cur_input.length!=1){
             status_msg="Contact form has HTML error";
-            result=false;
+            valid=false;
             return;
         }
         cur_input=cur_input[0];			
@@ -29,12 +29,12 @@ function is_form_input_valid(form){
             return;				
         }		
         if(cur_input.value.length<2){
-            result=false;
+            valid=false;
             status_msg="Min length too small for "+cur_input.id;
             return;
         }
         if(cur_input.id=="email" && !validateEmail(cur_input.value)){
-            result=false;
+            valid=false;
             status_msg="Email address is not in the correct format";
             return;				
         }		
@@ -72,91 +72,4 @@ function trim_pgp_message(encrypted){
     trimmed=trimmed.replace(/(v\d\.[\d|\.]+)/gi,"");
     trimmed=trimmed.trim();
     return trimmed;
-}
-
-function reCaptchaOnFocus(evt) {
-    /*
-    Lazy load
-    Function that loads recaptcha on form input focus
-    https://antonioufano.com/articles/improve-web-performance-lazy-loading-recaptcha/
-    */			
-    console.log("Focusing form" +evt.type);		
-    lazy_load_hcaptcha();
-    remove_lazyload_handlers();
-}
-
-function remove_lazyload_handlers(){
-    /*
-    remove focus to avoid js error:
-    */
-    console.log("Removing handlers");
-    document
-    .getElementById('myForm')
-    .removeEventListener('focus', reCaptchaOnFocus);
-    document
-    .getElementById('myForm')
-    .removeEventListener('mouseover', reCaptchaOnFocus, false);
-    document
-    .getElementById('contactname')
-    .removeEventListener('focus', reCaptchaOnFocus);
-    document
-    .getElementById('email')
-    .removeEventListener('focus', reCaptchaOnFocus);
-    document
-    .getElementById('subject')
-    .removeEventListener('focus', reCaptchaOnFocus);
-    document
-    .getElementById('content')
-    .removeEventListener('focus', reCaptchaOnFocus);
-    document
-    .getElementById('submit-msg')
-    .removeEventListener('focus', reCaptchaOnFocus);
-}
-function is_hcaptcha_already_loaded(){
-    return document.getElementById("hcpatcha_lazy_load")!=null;
-}
-
-async function lazy_load_hcaptcha(){		
-    /*
-    lazy loads captcha
-    */
-    if(is_hcaptcha_already_loaded()){
-        console.log("Loaded hcaptcha already");
-        return;		}
-
-    console.log("Lazy loading hcaptcha");
-    var head = document.getElementsByTagName('head')[0];
-    var script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = 'https://www.hCaptcha.com/1/api.js';
-    script.id="hcpatcha_lazy_load";
-    
-    head.appendChild(script);
-}
-
-function add_lazyload_handlers(){
-    // add initial event listener to the form inputs
-    document
-        .getElementById('myForm')
-        .addEventListener('focus', reCaptchaOnFocus, false);	
-    document
-        .getElementById('myForm')
-        .addEventListener('mouseover', reCaptchaOnFocus, false);		
-        
-    document
-        .getElementById('contactname')
-        .addEventListener('focus', reCaptchaOnFocus, false);
-    document
-        .getElementById('email')
-        .addEventListener('focus', reCaptchaOnFocus, false);
-        document
-        .getElementById('subject')
-        .addEventListener('focus', reCaptchaOnFocus, false);
-    document
-        .getElementById('content')
-        .addEventListener('focus', reCaptchaOnFocus, false);
-        document
-        .getElementById('submit-msg')
-        .addEventListener('focus', reCaptchaOnFocus, false);
-  console.log("added listeners for lazy loading");
 }

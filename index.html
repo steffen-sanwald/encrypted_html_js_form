@@ -22,26 +22,29 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 =iIGO
 -----END PGP PUBLIC KEY BLOCK-----"> 
 <script src="openpgpjs/dist/openpgp.js"></script>
+<script src="js/check_input.js"></script>
+<script src="js/lazy_load.js" ></script>
 <!--<script src='https://www.hCaptcha.com/1/api.js' async defer></script>-->
 </head>
-<body>
+<body onload="add_lazyload_handlers();">
 
 	<form action="contact.php" method="post" role="form" id="myForm">	
 		<label for="contactname">Name:</label><br>
-		<input type="text" id="contactname" placeholder="Max Mustermann"><br>
+		<input type="text" id="contactname" placeholder="Max Mustermann" required><br>
 	  
 		<label for="email">Email:</label><br>
-		<input type="text" id="email" placeholder="max@mustermann.de" required pattern="[Bb]anana|[Cc]herry"><br>
+		<input type="text" id="email" placeholder="max@mustermann.de" required><br>
 	  
 		<label for="subject">Subject:</label><br>
-		<input type="text" id="subject" placeholder="Your offer from last sunday"><br>
+		<input type="text" id="subject" placeholder="Your offer from last sunday" required><br>
 	  
 		<label for="content">Content:</label><br>
 		<input type="text" id="content" placeholder="Hey Max" required>
 		<!-- official dummy value for data-sitekey taken from https://docs.hcaptcha.com.
 			Can be used for debugging.
 			Replace value with the one from your hcaptcha instance -->
-
+			<!--<div class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001"></div>-->
+		
 		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">		  
 		<button id="submit-msg" name="submit-msg" class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001" data-callback="after_capture_success" value="Submit encrypted"></button>
 		
@@ -70,6 +73,7 @@ function after_capture_success(evt){
 	var result = is_form_input_valid(form);
 	if(!result[0]){
 		console.log("Form input failed:"+result[1]);
+		document.getElementById("result").innerText="Form input failed:"+result[1];//for easy debugging on Smartphone
 		return false;
 	}
     var form_jq=$(form);    
@@ -77,6 +81,7 @@ function after_capture_success(evt){
     var publicKeyArmored = document.getElementById("pgp-pubkey").content;
     if ( publicKeyArmored == null){
 		console.log("public key not specified");
+		document.getElementById("result").innerText="public key not specified";//for easy debugging on Smartphone
 		return false;
 	  }
 	
@@ -96,6 +101,7 @@ function after_capture_success(evt){
 	  //check whether trimming somehow destroyed the content
       if(encrypted.indexOf(trimmed)<0 || /^([A-Za-z0-9+/=\r\n]+)$/.test(trimmed)==false){
 		console.log("Trimming deleted pgp message content or contains not base64 characters"); 
+		document.getElementById("result").innerText="Trimming deleted pgp message content or contains not base64 characters";//for easy debugging on Smartphone
 		return false;
 	  }
 	  var transmitted_val="encryptedmessage="+trimmed+"&h-captcha-response="+hcaptchaVal;
@@ -149,8 +155,6 @@ function after_capture_success(evt){
 </script>
 
 <script src="js/jquery.min.js"></script>
-<script src="js/check_input.js">
-	add_lazyload_handlers();
-</script>
+
 </body>
 </html>
