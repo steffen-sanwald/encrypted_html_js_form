@@ -50,15 +50,10 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 			data-callback="after_capture_success" 
 			data-size="invisible"
 		></div>
-		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">		  
-		
-		<button id="submit-msg" name="submit-msg"  				
-				value="Submit encrypted" onclick="validate(event);"			
-				>
-		</button>
+		<input id="encryptedmessage" name="encryptedmessage" type="hidden" placeholder="">		  		
+		<button id="submit-msg" name="submit-msg" value="Submit encrypted" onclick="validate(event);"></button>
 		
 		<p id="result">Not yet</p>
-<!-- must have no space to the left-->
 </form>  
 
 
@@ -80,6 +75,10 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 		}
 		if(is_hcaptcha_already_loaded()){
 			hcaptcha.execute();
+		}
+		else{
+			console.log("Hcaptcha lazy load was too slow or not triggered,yet. Please try again");
+			lazy_load_hcaptcha();
 		}
 		
 	}
