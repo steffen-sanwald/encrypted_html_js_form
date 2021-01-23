@@ -1,7 +1,17 @@
 <?php
-define('VERIFY_CAPTURE',true); //default=true
-define('DEBUG',false);//default=false
-define('ADD_LOG_TO_JSON_OBJ',false);//default=false
+
+// Import PHPMailer classes into the global namespace
+// These must be at the top of your script, not inside a function
+
+include_once("PHPMailer/src/PHPMailer.php"); 
+include_once("PHPMailer/src/SMTP.php"); 
+include_once("PHPMailer/src/Exception.php"); 
+include_once("config.php");
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
 include_once("config.php");
 $global_logs=array();
 
@@ -93,7 +103,7 @@ function check_userinput(){
             "info" => "None base64 characters detected in PGP content",
             "msg" => $msg);  
     }    
-    $msg="-----BEGIN PGP MESSAGE-----\r\n".$msg."\r\n-----END PGP MESSAGE-----";   
+    $msg="-----BEGIN PGP MESSAGE-----\r\n\r\n".$msg."\r\n-----END PGP MESSAGE-----";   
     add_log_entry("Passed Base64 pgp message filter");
     return array(
         "result"=>"Valid",
@@ -107,67 +117,42 @@ function write_mail($content){
         based on https://thomas.gouverneur.name/2012/04/20120430sending-pgp-html-encrypted-e-mail-with-php/
     */
     global $smtp_data;
+    $mail = new PHPMailer();
+    try {       
+        //Server settings
+        $mail->SMTPDebug = SMTP::DEBUG_SERVER;                      // Enable verbose debug output
+        $mail->isSMTP();                                            // Send using SMTP
+        $mail->Host       = $smtp_data["host"];                    // Set the SMTP server to send through
+        $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
+        $mail->Username   = $smtp_data["username"];                     // SMTP username
+        $mail->Password   = $smtp_data["password"];                               // SMTP password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;         // Enable TLS encryption; `PHPMailer::ENCRYPTION_SMTPS` encouraged
+        $mail->Port       = $smtp_data["port"];                                    // TCP port to connect to, use 465 for `PHPMailer::ENCRYPTION_SMTPS` above
     
-    $pgpmime = "";
-    $mime = "";
-    $headers = "";
-    $dest = $smtp_data["dest"];
-    $subject = "My HTML crypted report";
-    $clearContent = "<html><p>This is the report in cleartext!</p></html>";
-    $clearText = "This is the text version of the report";
-    /* Prepare the crypted Part of the message */
-    $bound = "————".substr(strtoupper(md5(uniqid(rand()))), 0, 25);
-    $pgpmime .= "Content-Type: multipart/alternative;\r\n boundary=\"$bound\"\r\n\r\n";
-    $pgpmime .= "This is a multi-part message in MIME format.\r\n";
-    $pgpmime .= "–$bound\r\n";
-    $pgpmime .= "Content-Type: text/plain; charset=utf-8\r\n";
-    $pgpmime .= "Content-Transfer-Encoding: quoted-printable\r\n\r\n";
-    $pgpmime .= $clearText."\r\n\r\n";
-    $pgpmime .= "–$bound\r\n";
-    $pgpmime .= "Content-Type: text/html; charset=\"utf-8\"\r\n";
-    $pgpmime .= "Content-Transfer-Encoding: quoted-printable\r\n\r\n";
-    $pgpmime .= $clearContent."\r\n";
-    $pgpmime .= "–".$bound."–\r\n";
-    //$content = GPG::cryptTxt($pgpkey, $pgpmime);
-    /* Make the email"s headers */
-    $headers = "";
-    $headers = "From: ".$smtp_data["from"]."\r\n";
-    $headers .= "Reply-to: ".$smtp_data["reply-to"]."\r\n";
-    $headers .= "X-Sender: WeSunSolve v2.0\r\n";
-    $headers .= "Message-ID: <".time()."@".$smtp_data["msg-id"].">\r\n";
-    $headers .= "Date: " . date("r") . "\r\n";
-    $bound = "————enig".substr(strtoupper(md5(uniqid(rand()))), 0, 25);
-    $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: multipart/encrypted;\r\n";
-    $headers .= " protocol=\"application/pgp-encrypted\";\r\n";
-    $headers .= " boundary=\"".$bound."\"\r\n\r\n";
-    /* And the cleartext body which encapsulate PGP message */
-    $mime = "";
-    $mime .= "This is an OpenPGP/MIME encrypted message (RFC 2440 and 3156)\r\n";
-    $mime .= "–".$bound."\r\n";
-    $mime .= "Content-Type: application/pgp-encrypted\r\n";
-    $mime .= "Content-Description: PGP/MIME version identification\r\n\r\n";
-    $mime .= "Version: 1\r\n\r\n";
-    $mime .= "–".$bound."\r\n";
-    $mime .= "Content-Type: application/octet-stream; name=\"encrypted.asc\"\r\n";
-    $mime .= "Content-Description: OpenPGP encrypted message\r\n";
-    $mime .= "Content-Disposition: inline; filename=\"encrypted.asc\"\r\n\r\n";
-    $mime .= $content."\r\n";
-    $mime .= "–".$bound."–";
+        //Recipients
+        $mail->setFrom($smtp_data["from"], $smtp_data["from-name"]);
+        $mail->addAddress($smtp_data["dest"], $smtp_data["dest-name"]);     // Add a recipient
     
-    add_log_entry("Sending mail:");
-    add_log_entry("Mime:".$mime);
-    add_log_entry("Headers:".$headers);
+        $mail->isHTML(true);                                  // Set email format to HTML
+        $mail->Subject = $smtp_data["mail-subject"];
+        //$mail->Body    = 'This is the HTML message body <b>in bold!</b>';
+        $mail->Body = $content; //set the pgp encrypted message directly. Thunderbird will decode it automatically.
+        $mail->AltBody = 'This is the body in plain text for non-HTML mail clients';
         
-    try{
-        mail($dest, $subject, $mime, $headers);
+        $mail->send();
         add_log_entry("Sending mail successfully");
-        return TRUE;
+    } catch (Exception $e) {
+        if(DEBUG){//don't know if error message leaks info
+            add_log_entry("SecureContactForm:Message could not be sent. Mailer Error: {$mail->ErrorInfo}");
+        }
+        else{
+            add_log_entry("SecureContactForm:Could send mail");
+        }
+        
+        
+        
     }
-    catch(Exception $e){
-        add_log_entry("SecureContactForm:Could send mail:::".$mime.":::".$headers);
-        return FALSE;
-    }
+
 }
 function write_to_logfile($resp,$mail_success){
     /*

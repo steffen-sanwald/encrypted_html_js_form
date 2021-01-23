@@ -9,7 +9,6 @@
 "-----BEGIN PGP PUBLIC KEY BLOCK-----
 Comment: Alice's OpenPGP certificate
 Comment: https://www.ietf.org/id/draft-bre-openpgp-samples-01.html
-
 mDMEXEcE6RYJKwYBBAHaRw8BAQdArjWwk3FAqyiFbFBKT4TzXcVBqPTB3gmzlC/U
 b7O1u120JkFsaWNlIExvdmVsYWNlIDxhbGljZUBvcGVucGdwLmV4YW1wbGU+iJAE
 ExYIADgCGwMFCwkIBwIGFQoJCAsCBBYCAwECHgECF4AWIQTrhbtfozp14V6UTmPy
@@ -24,7 +23,7 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 <script src="openpgpjs/dist/openpgp.js"></script>
 <script src="js/check_input.js"></script>
 <script src="js/lazy_load.js" ></script>
-<!--<script src='https://www.hCaptcha.com/1/api.js' async defer></script>-->
+
 </head>
 <body onload="add_lazyload_handlers();">
 
@@ -43,7 +42,9 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 		<!-- official dummy value for data-sitekey taken from https://docs.hcaptcha.com.
 			Can be used for debugging.
 			Replace value with the one from your hcaptcha instance -->
-			<!--<div class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001"></div>-->
+			<!--<div class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001"></div>
+			use invisible captcha described in https://docs.hcaptcha.com/invisible
+			to execute hcaptcha via javascript-->
 		<div 
 			id="hcaptcha"
 			class="h-captcha" data-sitekey="10000000-ffff-ffff-ffff-000000000001"		
@@ -60,12 +61,15 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 <script>
 
 	function validate(event){
+		/*
+		Validate input before captcha is loaded.
+		*/
 		console.log("Validating input before captcha check");
 		event.preventDefault();
 		var result = is_form_input_valid(document.getElementById("myForm"));
 		if(!result[0]){
 			console.log("Form input failed:"+result[1]);
-			document.getElementById("result").innerText="Form input failed:"+result[1];//for easy debugging on Smartphone
+			document.getElementById("result").innerText="Form input failed:"+result[2];//for easy debugging on Smartphone
 			return false;
 		}		
 		if ( document.getElementById("pgp-pubkey").content == null){
@@ -83,88 +87,88 @@ DAAKCRDyMVUMT0fjjlnQAQDFHUs6TIcxrNTtEZFjUFm1M0PJ1Dng/cDW4xN80fsn
 		
 	}
 
-function after_capture_success(evt){
-	/*	
-	Evaluates password strength as meta information and attaches it to hidden pw meta form input.
-	Decrypt it for testing via: gpg --output test.msg --decrypt test.msg.pgp
-	But first check captcha client-sided
-	*/
+	function after_capture_success(evt){
+		/*	
+		Evaluates password strength as meta information and attaches it to hidden pw meta form input.
+		Decrypt it for testing via: gpg --output test.msg --decrypt test.msg.pgp
+		But first check captcha client-sided
+		*/
 
-  (async () => {
-	console.log("Capture solved successfully");
-	var hcaptchaVal = document.getElementsByName("h-captcha-response")[0].value; 
-   if (hcaptchaVal === "") {
-		evt.preventDefault();
-      	alert("Please complete the hCaptcha");
-   }
-	  
-	var form = document.getElementById("myForm");
-	var publicKeyArmored = document.getElementById("pgp-pubkey").content;
-	
-	var form_jq=$(form);  
-	var action = form_jq.attr('action');  
-	var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
-			" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
-	
-    await openpgp.initWorker({ path: 'openpgpjs/dist/openpgp.worker.js' }); // set the relative web worker path
+	(async () => {
+		console.log("Capture solved successfully");
+		var hcaptchaVal = document.getElementsByName("h-captcha-response")[0].value; 
+	if (hcaptchaVal === "") {
+			evt.preventDefault();
+			alert("Please complete the hCaptcha");
+	}
+		
+		var form = document.getElementById("myForm");
+		var publicKeyArmored = document.getElementById("pgp-pubkey").content;
+		
+		var form_jq=$(form);  
+		var action = form_jq.attr('action');  
+		var plaintext="Name:" + form.elements["contactname"].value + " Email:"+form.elements["email"].value + 
+				" Subject:"+form.elements["subject"].value+ " Content:"+form.elements["content"].value;
+		
+		await openpgp.initWorker({ path: 'openpgpjs/dist/openpgp.worker.js' }); // set the relative web worker path
 
-    const { data: encrypted } = await openpgp.encrypt({
-        message: openpgp.message.fromText(plaintext),                 
-        publicKeys: (await openpgp.key.readArmored(publicKeyArmored)).keys,
-    });
-	console.log("Raw msg:"+encrypted); 
+		const { data: encrypted } = await openpgp.encrypt({
+			message: openpgp.message.fromText(plaintext),                 
+			publicKeys: (await openpgp.key.readArmored(publicKeyArmored)).keys,
+		});
+		console.log("Raw msg:"+encrypted); 
 
-	var trimmed=trim_pgp_message(encrypted);
-	  console.log("Send msg:"+trimmed); 
-	  //check whether trimming somehow destroyed the content
-      if(encrypted.indexOf(trimmed)<0 || /^([A-Za-z0-9+/=\r\n]+)$/.test(trimmed)==false){
-		console.log("Trimming deleted pgp message content or contains not base64 characters"); 
-		document.getElementById("result").innerText="Trimming deleted pgp message content or contains not base64 characters";//for easy debugging on Smartphone
-		return false;
-	  }
-	  var transmitted_val="encryptedmessage="+trimmed+"&h-captcha-response="+hcaptchaVal;
-	  // transfer data via AJAX POST request	  
-	  $.ajax({
-      type: "POST",
-      url: action,
-	  data: transmitted_val,
-	  encode:false,
-	  process:false,
-      success: function(msg) {		
-		  document.getElementById("result").innerText=msg;//for easy debugging on Smartphone
-		  
-		  if (msg == 'Valid' || msg=="Invalid") {  //if only one of these words is returned, debug is off.
-			if (msg == 'Valid') {
-			console.log("Submitted encrypted data successfully");
-			} else {
-			console.log("Submitted encrypted data failed");
-			}
+		var trimmed=trim_pgp_message(encrypted);
+		console.log("Send msg:"+trimmed); 
+		//check whether trimming somehow destroyed the content
+		if(encrypted.indexOf(trimmed)<0 || /^([A-Za-z0-9+/=\r\n]+)$/.test(trimmed)==false){
+			console.log("Trimming deleted pgp message content or contains not base64 characters"); 
+			document.getElementById("result").innerText="Trimming deleted pgp message content or contains not base64 characters";//for easy debugging on Smartphone
+			return false;
 		}
-		else{//debug messages are enabled. JSON object returned
-			response=JSON.parse(msg);			
-			if (response["result"] == 'Valid') {
-			console.log("Submitted encrypted data successfully (DEBUG ON)") 
-			} else {
-
-				msg=escapeHtml(response["msg"]);
-				result=escapeHtml(response["result"]);
-				info=escapeHtml(response["info"]);
-			console.log("Submitted encrypted data failed (DEBUG ON)");
-			console.log(result);
-			console.log(info);
-			console.log(msg);
-			if(response["log"]!=null){
-				response["log"].forEach(function (item,index){
-				console.log("Log"+index+":"+escapeHtml(item));
-			})
-			}
+		var transmitted_val="encryptedmessage="+trimmed+"&h-captcha-response="+hcaptchaVal;
+		// transfer data via AJAX POST request	  
+		$.ajax({
+		type: "POST",
+		url: action,
+		data: transmitted_val,
+		encode:false,
+		process:false,
+		success: function(msg) {		
+			document.getElementById("result").innerText=msg;//for easy debugging on Smartphone
 			
+			if (msg == 'Valid' || msg=="Invalid") {  //if only one of these words is returned, debug is off.
+				if (msg == 'Valid') {
+				console.log("Submitted encrypted data successfully");
+				} else {
+				console.log("Submitted encrypted data failed");
+				}
+			}
+			else{//debug messages are enabled. JSON object returned
+				response=JSON.parse(msg);			
+				if (response["result"] == 'Valid') {
+				console.log("Submitted encrypted data successfully (DEBUG ON)") 
+				} else {
+
+					msg=escapeHtml(response["msg"]);
+					result=escapeHtml(response["result"]);
+					info=escapeHtml(response["info"]);
+				console.log("Submitted encrypted data failed (DEBUG ON)");
+				console.log(result);
+				console.log(info);
+				console.log(msg);
+				if(response["log"]!=null){
+					response["log"].forEach(function (item,index){
+					console.log("Log"+index+":"+escapeHtml(item));
+				})
+				}
+				
+				}
 			}
 		}
-      }
-    });
-})();
-}
+		});
+	})();
+	}
 
 	
 	

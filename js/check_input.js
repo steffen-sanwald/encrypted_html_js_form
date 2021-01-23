@@ -13,34 +13,24 @@ function is_form_input_valid(form){
     */
     if(form==null || form.elements["contactname"]==null || form.elements["email"]==null || form.elements["subject"] == null || 
               form.elements["content"] == null){
-                  return [false,"Contact form has HTML error"];
+                  return [false,null,"ElemIsNull"];
     }
-    var valid=true;
-    var status_msg="OK";
-    $(form).children('input').each(function(){
-        var cur_input=$(this);
-        if(cur_input.length!=1){
-            status_msg="Contact form has HTML error";
-            valid=false;
-            return;
-        }
-        cur_input=cur_input[0];			
-        if(cur_input.id=="encryptedmessage"){
-            return;				
+    var input_list=form.getElementsByTagName("input");
+    for(let cur_input_elem of input_list){
+        var cur_input=cur_input_elem.value;
+        	
+        if(cur_input_elem.id=="encryptedmessage"){
+            continue;				
         }		
-        if(cur_input.value.length<2){
-            valid=false;
-            status_msg="Min length too small for "+cur_input.id;
-            return;
+        if(cur_input.length<2){            
+            return [false,cur_input_elem, "TooSmall"];
         }
-        if(cur_input.id=="email" && !validateEmail(cur_input.value)){
-            valid=false;
-            status_msg="Email address is not in the correct format";
-            return;				
+        if(cur_input_elem.id=="email" && !validateEmail(cur_input)){            
+            return [false, cur_input_elem,"InvalidMail"];				
         }		
 
-    });		
-    return [valid,status_msg];
+    };		
+    return [true,"OK"];
     
 }
 function escapeHtml(unsafe) {
